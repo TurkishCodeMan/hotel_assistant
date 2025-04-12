@@ -9,7 +9,6 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import logging
 from datetime import datetime
-import json
 
 # Logger ayarları
 logger = logging.getLogger(__name__)
@@ -26,24 +25,8 @@ def get_sheet_client():
         gspread.Client: Kimlik doğrulaması yapılmış gspread istemcisi
     """
     try:
-        # Kimlik bilgileri dosyasını kontrol et
-        if not os.path.exists(CREDENTIALS_FILE):
-            print(f"HATA: Credentials dosyası bulunamadı: {CREDENTIALS_FILE}")
-            exit(1)
-        
-        # Dosya içeriğini kontrol et
-        with open(CREDENTIALS_FILE, 'r') as f:
-            cred_data = json.load(f)
-            print(f"Kimlik bilgileri yüklendi. Service account: {cred_data.get('client_email')}")
-        
-        # Kimlik doğrulama dene
+        # Kimlik bilgilerini yükle ve doğrula
         credentials = ServiceAccountCredentials.from_json_keyfile_name(CREDENTIALS_FILE, SCOPES)
-        print("✅ Kimlik doğrulama başarılı!")
-        
-        # Token oluşturma dene
-        token = credentials.get_access_token()
-        print(f"✅ Token oluşturuldu. Geçerlilik süresi: {token.expires_in} saniye")
-        
         client = gspread.authorize(credentials)
         return client
     except Exception as e:
