@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Özkaya Otel Rezervasyon Asistanı - Streamlit Arayüzü
+Altıkulaç Otel Rezervasyon Asistanı - Streamlit Arayüzü
 --------------------------------------------
 Streamlit ile interaktif otel rezervasyon asistanı.
 """
@@ -366,7 +366,7 @@ def get_last_response(event: Dict) -> str:
                     return clean_json_text(content)
 
         # Eğer burada hala return edilmediyse, başlatma mesajı göster
-        return "Merhaba! Size nasıl yardımcı olabilirim? Özkaya Otel'de rezervasyon yapmak, bilgi almak veya yardım için bana sorabilirsiniz."
+        return "Merhaba! Size nasıl yardımcı olabilirim? Altıkulaç Otel'de rezervasyon yapmak, bilgi almak veya yardım için bana sorabilirsiniz."
     except Exception as e:
         logger.error(f"Yanıt işleme hatası: {str(e)}")
         return "Üzgünüm, yanıt işlenirken bir hata oluştu."
@@ -382,7 +382,7 @@ def create_state_display(session_state):
     st.sidebar.markdown("""
     <div style="text-align: center; margin-bottom: 2rem;">
         <div style="font-size: 2rem; margin-bottom: 0.5rem;">🏨</div>
-        <div style="font-weight: 600; color: var(--primary-color); font-size: 1.2rem;">Özkaya Otel</div>
+        <div style="font-weight: 600; color: var(--primary-color); font-size: 1.2rem;">Altıkulaç Otel</div>
         <div style="font-size: 0.9rem; color: var(--text-secondary);">Sistem Durumu</div>
     </div>
     """, unsafe_allow_html=True)
@@ -560,7 +560,7 @@ def create_state_display(session_state):
     <div class="sidebar-section" style="margin-top: 2rem;">
         <div class="sidebar-header">ℹ️ Otel Bilgileri</div>
         <div style="font-size: 0.9rem; margin-bottom: 0.4rem; color: var(--text-secondary);">
-            <span style="margin-right: 0.5rem;">📍</span> Özkaya Otel, İstanbul
+            <span style="margin-right: 0.5rem;">📍</span> Altıkulaç Otel, Malatya Merkez
         </div>
         <div style="font-size: 0.9rem; margin-bottom: 0.4rem; color: var(--text-secondary);">
             <span style="margin-right: 0.5rem;">🕒</span> Check-in: 14:00, Check-out: 12:00
@@ -569,7 +569,7 @@ def create_state_display(session_state):
             <span style="margin-right: 0.5rem;">🍳</span> Kahvaltı dahil
         </div>
         <div style="font-size: 0.9rem; color: var(--text-secondary);">
-            <span style="margin-right: 0.5rem;">📱</span> +90 (212) 123 45 67
+            <span style="margin-right: 0.5rem;">📱</span> +90 (422) 123 45 67
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -615,12 +615,36 @@ def process_message():
 
 def main():
     """Ana uygulama fonksiyonu"""
+    
+    # Sidebar'ı gizlemek için kontrol değişkeni - Deploy için False yapılabilir
+    SHOW_SIDEBAR = False  # Sidebar'ı göstermek için True, gizlemek için False
+    
     st.set_page_config(
-        page_title="Özkaya Otel Rezervasyon Asistanı",
+        page_title="Altıkulaç Otel Rezervasyon Asistanı",
         page_icon="🏨",
         layout="wide",
-        initial_sidebar_state="expanded"
+        initial_sidebar_state="expanded" if SHOW_SIDEBAR else "collapsed"
     )
+    
+    # Sidebar'ı tamamen gizleme (CSS ile)
+    if not SHOW_SIDEBAR:
+        st.markdown("""
+        <style>
+            [data-testid="collapsedControl"] {
+                display: none;
+            }
+            
+            section[data-testid="stSidebar"] {
+                display: none;
+            }
+            
+            .main .block-container {
+                padding-left: 2rem;
+                padding-right: 2rem;
+                max-width: 1000px;
+            }
+        </style>
+        """, unsafe_allow_html=True)
     
     # Genel CSS stilleri
     st.markdown("""
@@ -773,11 +797,11 @@ def main():
     <div class="custom-card" style="text-align: center; padding: 2rem; background: linear-gradient(135deg, #3498db, #1E88E5); color: white; border: none; margin-bottom: 2rem;">
         <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 1rem;">
             <span style="font-size: 3rem; margin-right: 15px;">🏨</span>
-            <h1 style="margin: 0; color: white; font-size: 2.5rem; font-weight: 700;">Özkaya Otel</h1>
+            <h1 style="margin: 0; color: white; font-size: 2.5rem; font-weight: 700;">Altıkulaç Otel</h1>
         </div>
         <h2 style="margin-top: 0; color: white; font-weight: 500; margin-bottom: 1.5rem;">Rezervasyon Asistanı</h2>
         <p style="font-size: 1.1rem; color: rgba(255, 255, 255, 0.9); max-width: 800px; margin: 0 auto; line-height: 1.6;">
-            Özkaya Otel'e hoş geldiniz! Oda rezervasyonu yapmak, mevcut rezervasyonunuzu yönetmek veya otel hakkında sorularınız için benimle sohbet edebilirsiniz.
+            Altıkulaç Otel'e hoş geldiniz! Oda rezervasyonu yapmak, mevcut rezervasyonunuzu yönetmek veya otel hakkında sorularınız için benimle sohbet edebilirsiniz.
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -832,14 +856,15 @@ def main():
     
     # Yan panel - State görüntüleme
     # Debug için state durumunu yazdır
-    st.sidebar.markdown("### 🔍 State Bilgileri (Debug)")
-    st.sidebar.write("State içeriği (session_state):", st.session_state)
-    
-    # State görüntülemeyi güncelle
-    if hasattr(st.session_state, 'session_state'):
-        create_state_display(st.session_state.session_state)
-    else:
-        create_state_display(state) # global state değişkenini kullan
+    if SHOW_SIDEBAR:
+        st.sidebar.markdown("### 🔍 State Bilgileri (Debug)")
+        st.sidebar.write("State içeriği (session_state):", st.session_state)
+        
+        # State görüntülemeyi güncelle
+        if hasattr(st.session_state, 'session_state'):
+            create_state_display(st.session_state.session_state)
+        else:
+            create_state_display(state) # global state değişkenini kullan
     
     # LangGraph workflow'u başlat
     if not st.session_state.initialized:
@@ -850,16 +875,16 @@ def main():
                 workflow = compile_workflow(graph)
                 st.session_state.workflow = workflow
                 
-                # State bilgisini doğrudan göster
-                st.sidebar.markdown("### 🔄 Başlangıç State Bilgisi")
-                st.sidebar.write(state)
+                # State bilgisini doğrudan göster (sadece sidebar görünürse)
+                if SHOW_SIDEBAR:
+                    st.sidebar.markdown("### 🔄 Başlangıç State Bilgisi")
+                    st.sidebar.write(state)
                 
                 # State'i session_state'e aktar
                 if state:
                     st.session_state.session_state = state.copy()
                 
                 st.session_state.initialized = True
-                st.success("Sistem başarıyla başlatıldı!")
             except Exception as e:
                 st.error(f"Sistem başlatılırken bir hata oluştu: {str(e)}")
                 return
@@ -888,7 +913,7 @@ def main():
             <div style="display: flex; margin-bottom: 1rem; justify-content: center;">
                 <div style="background-color: rgba(30, 136, 229, 0.05); border-radius: 15px; padding: 1.5rem; text-align: center; max-width: 80%; border: 1px dashed var(--primary-color);">
                     <div style="font-size: 2rem; margin-bottom: 1rem; color: var(--primary-color);">👋</div>
-                    <div style="font-weight: 600; font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--primary-color);">Merhaba, Özkaya Otel'e Hoş Geldiniz!</div>
+                    <div style="font-weight: 600; font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--primary-color);">Merhaba, ALTIKULAÇ Otel'e Hoş Geldiniz!</div>
                     <div style="color: var(--text-secondary); line-height: 1.6;">
                         Size nasıl yardımcı olabilirim? Rezervasyon yapmak, mevcut rezervasyonunuzu kontrol etmek veya otel hakkında bilgi almak için sorularınızı yazabilirsiniz.
                     </div>
@@ -1032,22 +1057,24 @@ def main():
                 # Her adımda debug çıktısı
                 if "end" in event:
                     # State içeriğini yan panelde göster
-                    keys = list(event["end"].keys())
-                    st.sidebar.markdown("### 🔄 İşlem Adımı")
-                    st.sidebar.write(f"State içeriğinde {len(keys)} anahtar var")
-                    # Sadece önemli bilgileri göster
-                    if "reservation_response" in event["end"]:
-                        st.sidebar.info("Rezervasyon yanıtı alındı ✅")
-                    if "new_reservation" in event["end"]:
-                        st.sidebar.success("Yeni rezervasyon oluşturuldu ✅")
-                    if "reservations_result" in event["end"]:
-                        st.sidebar.success("Rezervasyon sonuçları alındı ✅")
+                    if SHOW_SIDEBAR:
+                        keys = list(event["end"].keys())
+                        st.sidebar.markdown("### 🔄 İşlem Adımı")
+                        st.sidebar.write(f"State içeriğinde {len(keys)} anahtar var")
+                        # Sadece önemli bilgileri göster
+                        if "reservation_response" in event["end"]:
+                            st.sidebar.info("Rezervasyon yanıtı alındı ✅")
+                        if "new_reservation" in event["end"]:
+                            st.sidebar.success("Yeni rezervasyon oluşturuldu ✅")
+                        if "reservations_result" in event["end"]:
+                            st.sidebar.success("Rezervasyon sonuçları alındı ✅")
             
             if last_event:
                 # Session state'i güncelle ve debug bilgisi göster
                 if "end" in last_event:
                     st.session_state.session_state = last_event["end"]
-                    st.sidebar.success("State başarıyla güncellendi!")
+                    if SHOW_SIDEBAR:
+                        st.sidebar.success("State başarıyla güncellendi!")
                     
                 # Debug - son rezervasyon yanıtını kontrol et
                 if "end" in last_event and "reservation_response" in last_event["end"] and last_event["end"]["reservation_response"]:
