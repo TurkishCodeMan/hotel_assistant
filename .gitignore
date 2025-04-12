@@ -42,7 +42,14 @@ venv.bak/
 *.sublime-workspace
 *.sublime-project
 
-
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
 
 # API anahtarları ve kimlik bilgileri
 config.ini
