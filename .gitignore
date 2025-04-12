@@ -1,0 +1,98 @@
+# Python ile ilgili dosyalar
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Sanal ortam
+venv/
+env/
+ENV/
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE ayarları
+.idea/
+.vscode/
+*.swp
+*.swo
+.project
+.pydevproject
+.settings/
+*.sublime-workspace
+*.sublime-project
+
+# Log dosyaları
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Veritabanı dosyaları
+*.db
+*.sqlite
+*.sqlite3
+
+# Streamlit spesifik
+.streamlit/secrets.toml
+.streamlit/config.toml
+
+# Geçici dosyalar
+.DS_Store
+Thumbs.db
+.ipynb_checkpoints/
+*.bak
+*.tmp
+*~
+
+# Model dosyaları ve cache
+.cache/
+models/
+*.pkl
+*.h5
+*.pt
+*.pth
+*.onnx
+*.bin
+
+# API anahtarları ve kimlik bilgileri
+config.ini
+secrets.json
+credentials.json
+token.json
+*.pem
+*.key
+
+# Derleme ortamı ve dağıtım dosyaları
+node_modules/
+package-lock.json
+yarn.lock
+/.pnp
+.pnp.js
+
+# Çıktı ve sonuç dosyaları
+output/
+results/
+data/processed/ 
