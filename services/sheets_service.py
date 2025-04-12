@@ -27,7 +27,7 @@ def get_sheet_client():
         if os.environ.get('GOOGLE_CREDENTIALS'):
             import json
             logger.info("Kimlik bilgileri çevre değişkeninden okunuyor...")
-            credentials_dict = json.loads(os.environ.get('GOOGLE_CREDENTIAL'))
+            credentials_dict = json.loads(os.environ.get('GOOGLE_CREDENTIALS'))
             credentials = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, SCOPES)
         # 2. Sonra google_credentials.json dosyasını kontrol et
         elif os.path.exists(CREDENTIALS_FILE):
