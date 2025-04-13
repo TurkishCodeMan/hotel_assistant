@@ -6,10 +6,9 @@
 Otellerin doğrudan satış kanallarındaki iş yükünü hafifletmek ve müşteri deneyimini iyileştirmek için yapay zeka destekli bir rezervasyon asistanı geliştirmek.
 
 ### Amaç
-WhatsApp Business API üzerinden müşterilerle etkileşime geçen, rezervasyon süreçlerini otomatikleştiren ve Google Tablolar ile entegre çalışan akıllı bir asistan sistemi oluşturmak.
+Web Arayüzü üzerinden müşterilerle etkileşime geçen, rezervasyon süreçlerini otomatikleştiren ve Google Tablolar ile entegre çalışan akıllı bir asistan sistemi oluşturmak.
 
 ### Temel Özellikler
-- WhatsApp üzerinden 7/24 müşteri etkileşimi
 - Oda müsaitliği sorgulama 
 - Rezervasyon oluşturma ve onaylama
 - Müşteri bilgilerini toplama ve doğrulama
@@ -130,13 +129,7 @@ WhatsApp Business API üzerinden müşterilerle etkileşime geçen, rezervasyon 
 
 ## 6. API Entegrasyonları
 
-### WhatsApp Business API
-- Webhook kurulumu
-- Mesaj alma ve gönderme
-- Medya (görsel, sesli mesaj) desteği
-- Şablon mesajlar
-
-### OpenRouter (DeepSeek)
+### Gemini 
 - API konfigürasyonu
 - Model parametrelerinin ayarlanması
 - Prompt şablonlarının hazırlanması

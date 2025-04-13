@@ -685,7 +685,7 @@ def main():
     """Ana uygulama fonksiyonu"""
     
     # Sidebar'ı gizlemek için kontrol değişkeni - Deploy için False yapılabilir
-    SHOW_SIDEBAR = True  # Sidebar'ı göstermek için True, gizlemek için False
+    SHOW_SIDEBAR = False  # Sidebar'ı göstermek için True, gizlemek için False
     
     st.set_page_config(
         page_title="Altıkulaç Otel Rezervasyon Asistanı",
