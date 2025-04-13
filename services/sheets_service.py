@@ -162,6 +162,70 @@ def get_all_reservations(spreadsheet_name_or_key, worksheet_name=None):
         print(f"DEBUG HATA: {str(e)}")
         return []
 
+def get_reservations_by_name(spreadsheet_name_or_key, customer_name, exact_match=True, worksheet_name=None, room_type=None):
+    """
+    Müşteri adına göre rezervasyonları filtreler.
+    
+    Args:
+        spreadsheet_name_or_key (str): Tablo adı veya benzersiz anahtarı
+        customer_name (str): Filtrelenecek müşteri adı
+        exact_match (bool): True ise tam eşleşme arar, False ise içeren kayıtları bulur
+        worksheet_name (str, optional): Sayfa adı
+        room_type (str, optional): Oda tipi filtresi
+    
+    Returns:
+        list: Filtrelenmiş rezervasyon bilgilerini içeren sözlük listesi
+    """
+    try:
+        logger.info(f"Müşteri adı filtreleme: Müşteri={customer_name}, Oda Tipi={room_type}, Tam Eşleşme={exact_match}")
+        
+        # Tüm rezervasyonları al
+        records = get_all_reservations(spreadsheet_name_or_key, worksheet_name)
+        
+        if not records:
+            logger.warning("Filtrelenecek kayıt bulunamadı")
+            return []
+        
+        # Filtreleme öncesi kayıt sayısı
+        logger.info(f"Filtreleme öncesi toplam kayıt: {len(records)}")
+        
+        # Filtreleme işlemi
+        filtered_records = []
+        for record in records:
+            # Müşteri adı kontrolü (customer_name alanı varsa)
+            if 'customer_name' not in record:
+                logger.warning("Kayıtta 'customer_name' alanı bulunamadı")
+                continue
+                
+            current_name = record.get('customer_name', '')
+            
+            # İsim eşleşme kontrolü (büyük/küçük harf duyarsız)
+            if exact_match:
+                # Tam eşleşme kontrolü
+                name_match = (current_name.lower() == customer_name.lower())
+            else:
+                # İçerme kontrolü
+                name_match = (customer_name.lower() in current_name.lower())
+            
+            # Oda tipi kontrolü (belirtilmişse)
+            room_match = True
+            if room_type and 'room_type' in record:
+                current_room = record.get('room_type', '')
+                room_match = (current_room.lower() == room_type.lower())
+            
+            # Hem isim hem de oda tipi eşleşiyorsa listeye ekle
+            if name_match and room_match:
+                filtered_records.append(record)
+                logger.debug(f"Eşleşen kayıt: {record}")
+        
+        logger.info(f"Filtreleme sonrası eşleşen kayıt: {len(filtered_records)}")
+        return filtered_records
+        
+    except Exception as e:
+        logger.error(f"İsme göre rezervasyon filtreleme hatası: {str(e)}")
+        print(f"DEBUG FILTRELEME HATASI: {str(e)}")
+        return []
+
 def add_reservation(spreadsheet_name_or_key, reservation_data, worksheet_name=None):
     """
     Tabloya yeni bir rezervasyon ekler.

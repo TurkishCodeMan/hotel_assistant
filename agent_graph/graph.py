@@ -258,14 +258,15 @@ def create_graph(server=None, model=None, stop=None, model_endpoint=None, temper
     )
     
     # 5. Araç düğümlerinden rezervasyon ajanına dönüş
-    graph.add_edge("fetch_reservations_tool", "end")
-    graph.add_edge("update_reservation_tool", "end")
-    graph.add_edge("delete_reservation_tool", "end")
-    graph.add_edge("check_availability_tool", "end")
+    graph.add_edge("fetch_reservations_tool", "reservation_agent")
+    graph.add_edge("update_reservation_tool", "reservation_agent")
+    graph.add_edge("delete_reservation_tool", "reservation_agent")
+    graph.add_edge("check_availability_tool", "reservation_agent")
     
     # 6. Rezervasyon ekleme işlemi sonrası doğrudan sonlandır
-    graph.add_edge("add_reservation_tool", "end")
+    graph.add_edge("add_reservation_tool", "reservation_agent")
 
+    graph.add_edge('reservation_agent','end')
     return graph
 
 

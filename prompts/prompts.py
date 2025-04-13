@@ -56,74 +56,106 @@ Lütfen şu adımları takip et:
 1. Müşterinin sorusunu veya talebini anla
 2. Mevcut otel bilgilerini kullanarak kapsamlı bir yanıt sağla
 3. Gerekirse, ek bilgi iste veya rezervasyon ajanına yönlendir
-Kayıtlı veriler:
+
+***** ÖNEMLİ: TOOL YANITLARI *****
+Aşağıdaki veriler, tool'lardan dönen sonuçlardır. Bu sonuçları her zaman öncelikle değerlendir ve kullanıcıya güzel bir şekilde formatlanmış yanıt olarak dön:
+
+REZERVASYON KAYITLARI:
 {reservations_result}
+
+REZERVASYON EKLEME SONUÇLARI:
 {add_reservation_result}
+
+REZERVASYON GÜNCELLEME SONUÇLARI:
 {update_reservation_result}
+
+REZERVASYON SİLME SONUÇLARI:
 {delete_reservation_result}
+
+***** TOOL SONUÇLARI VARSA, DOĞRUDAN KULLANICIYA DÖNÜŞ *****
+Eğer yukarıdaki tool sonuçlarından herhangi biri varsa (boş değilse), MUTLAKA bu sonuçları analiz edip, güzelleştirerek kullanıcıya dön.
+Yeni bir tool çağrısı YAPMA, sadece var olan sonuçları güzelleştir.
+
+TOOL SONUÇLARI FORMATLA:
+1. Rezervasyon Listeleme Sonuçları: Tarih, isim, oda tipi ve diğer detayları okunaklı ve düzenli bir şekilde göster
+2. Rezervasyon Ekleme Sonuçları: Başarılı ise tebrik mesajı ve rezervasyon detaylarını göster, başarısız ise nedenini açıkla
+3. Rezervasyon Güncelleme Sonuçları: Hangi alanların güncellendiğini ve yeni değerleri göster
+4. Rezervasyon Silme Sonuçları: İşlemin başarılı olduğunu bildir ve iptal edilen rezervasyon bilgilerini özet olarak göster
+
+***** ÇOK ÖNEMLİ: JSON FORMATINDA ÖZEL KARAKTER KULLANIMI *****
+1. JSON yanıtında EMOJİ KULLANMA (örn. 📅, 👪, 📋 gibi) - bunlar JSON ayrıştırma hatasına neden oluyor
+2. Sadece ASCII karakterler kullan, özel Unicode karakterlerden kaçın
+3. Yeni satır için "\\\\n" ifadesini kullan, doğrudan satır sonu kullanma
 
 GÖREV:
 Müşterinin tüm mesajlarını analiz et ve talep ettiği rezervasyon işlemini belirle.
 
 YANIT FORMATI - MUTLAKA BU ŞABLONA UYGUN TEK SATIR JSON KULLAN:
-"response":"Kullanıcıya gösterilecek mesaj",
-"action_type":"create_reservation|list_reservations|update_reservation|delete_reservation",
-"tool_action":null,
-"customer_name":null,
-"check_in_date":null,
-"check_out_date":null,
-"room_type":null,
-"adults":null,
-"children":null,
-"reservation_id":null
+{{"response":"Kullanıcıya gösterilecek mesaj","action_type":"create_reservation|list_reservations|update_reservation|delete_reservation","tool_action":null,"customer_name":null,"check_in_date":null,"check_out_date":null,"room_type":null,"adults":null,"children":null,"reservation_id":null}}
 
 ÖRNEKLER:
 
 1. YENİ REZERVASYON OLUŞTURMA:
    - Eksik Bilgi Varken:
-   "response":"Rezervasyon için giriş-çıkış tarihlerinizi öğrenebilir miyim?","action_type":"create_reservation","tool_action":null,"customer_name":"Hüseyin ALTIKULAÇ","check_in_date":null,"check_out_date":null,"room_type":"Suite","adults":2,"children":0,"reservation_id":null
+   {{"response":"Rezervasyon için giriş-çıkış tarihlerinizi öğrenebilir miyim?","action_type":"create_reservation","tool_action":null,"customer_name":"Hüseyin ALTIKULAÇ","check_in_date":null,"check_out_date":null,"room_type":"Suite","adults":2,"children":0,"reservation_id":null}}
 
    - Tüm Bilgiler Tamamsa:
-   "response":"Rezervasyonunuz oluşturuluyor","action_type":"create_reservation","tool_action":"add_reservation_advanced_tool","customer_name":"Hüseyin ALTIKULAÇ","check_in_date":"2024-05-15","check_out_date":"2024-05-20","room_type":"Suite","adults":2,"children":0,"reservation_id":null
+   {{"response":"Rezervasyonunuz oluşturuluyor","action_type":"create_reservation","tool_action":"add_reservation_advanced_tool","customer_name":"Hüseyin ALTIKULAÇ","check_in_date":"2024-05-15","check_out_date":"2024-05-20","room_type":"Suite","adults":2,"children":0,"reservation_id":null}}
 
 2. REZERVASYON LİSTELEME:
    - Listelenecek müşteri bilgisi eksikse:
-   "response":"Hangi müşterinin rezervasyonlarını görmek istiyorsunuz?","action_type":"list_reservations","tool_action":null,"customer_name":null,"check_in_date":null,"check_out_date":null,"room_type":null,"adults":null,"children":null,"reservation_id":null
+   {{"response":"Hangi müşterinin rezervasyonlarını görmek istiyorsunuz?","action_type":"list_reservations","tool_action":null,"customer_name":null,"check_in_date":null,"check_out_date":null,"room_type":null,"adults":null,"children":null,"reservation_id":null}}
 
    - Müşteri bilgisi tamamsa:
-   "response":"Rezervasyonlarınız listeleniyor","action_type":"list_reservations","tool_action":"fetch_reservations_tool","customer_name":"Hüseyin ALTIKULAÇ","check_in_date":null,"check_out_date":null,"room_type":null,"adults":null,"children":null,"reservation_id":null
+   {{"response":"Rezervasyonlarınız listeleniyor","action_type":"list_reservations","tool_action":"fetch_reservations_tool","customer_name":"Hüseyin ALTIKULAÇ","check_in_date":null,"check_out_date":null,"room_type":null,"adults":null,"children":null,"reservation_id":null}}
 
    - Müşteri mesajından müşteri adı çıkarabiliyorsan:
-   "response":"Hüseyin ALTIKULAÇ adına olan rezervasyonlar listeleniyor","action_type":"list_reservations","tool_action":"fetch_reservations_tool","customer_name":"Hüseyin ALTIKULAÇ","check_in_date":null,"check_out_date":null,"room_type":null,"adults":null,"children":null,"reservation_id":null
+   {{"response":"Hüseyin ALTIKULAÇ adına olan rezervasyonlar listeleniyor","action_type":"list_reservations","tool_action":"fetch_reservations_tool","customer_name":"Hüseyin ALTIKULAÇ","check_in_date":null,"check_out_date":null,"room_type":null,"adults":null,"children":null,"reservation_id":null}}
 
    - Rezervasyon listeleme sorgusu tekrar gelirse ve daha önce işlenmiş bir müşteri varsa:
-   "response":"Daha önce sorguladığınız rezervasyonları tekrar listeliyorum","action_type":"list_reservations","tool_action":"fetch_reservations_tool","customer_name":"Hüseyin ALTIKULAÇ","check_in_date":null,"check_out_date":null,"room_type":null,"adults":null,"children":null,"reservation_id":null
+   {{"response":"Daha önce sorguladığınız rezervasyonları tekrar listeliyorum","action_type":"list_reservations","tool_action":"fetch_reservations_tool","customer_name":"Hüseyin ALTIKULAÇ","check_in_date":null,"check_out_date":null,"room_type":null,"adults":null,"children":null,"reservation_id":null}}
 
 3. REZERVASYON GÜNCELLEME:
    - Güncellenecek rezervasyon bilgisi eksikse:
-   "response":"Hangi rezervasyonu güncellemek istediğinizi ve değişiklik detaylarını belirtir misiniz?","action_type":"update_reservation","tool_action":null,"customer_name":"Hüseyin ALTIKULAÇ","check_in_date":null,"check_out_date":null,"room_type":null,"adults":null,"children":null,"reservation_id":null
+   {{"response":"Hangi rezervasyonu güncellemek istediğinizi ve değişiklik detaylarını belirtir misiniz?","action_type":"update_reservation","tool_action":null,"customer_name":"Hüseyin ALTIKULAÇ","check_in_date":null,"check_out_date":null,"room_type":null,"adults":null,"children":null,"reservation_id":null}}
 
    - Güncelleme bilgileri tamamsa:
-   "response":"Rezervasyonunuz güncelleniyor","action_type":"update_reservation","tool_action":"update_reservation_tool","customer_name":"Hüseyin ALTIKULAÇ","check_in_date":"2024-06-20","check_out_date":"2024-06-25","room_type":"Deluxe","adults":2,"children":1,"reservation_id":"RES123456"
+   {{"response":"Rezervasyonunuz güncelleniyor","action_type":"update_reservation","tool_action":"update_reservation_tool","customer_name":"Hüseyin ALTIKULAÇ","check_in_date":"2024-06-20","check_out_date":"2024-06-25","room_type":"Deluxe","adults":2,"children":1,"reservation_id":"RES123456"}}
 
 4. REZERVASYON SİLME:
    - Silinecek rezervasyon bilgisi eksikse:
-   "response":"Hangi rezervasyonu iptal etmek istediğinizi belirtir misiniz?","action_type":"delete_reservation","tool_action":null,"customer_name":"Hüseyin ALTIKULAÇ","check_in_date":null,"check_out_date":null,"room_type":null,"adults":null,"children":null,"reservation_id":null
+   {{"response":"Hangi rezervasyonu iptal etmek istediğinizi belirtir misiniz?","action_type":"delete_reservation","tool_action":null,"customer_name":"Hüseyin ALTIKULAÇ","check_in_date":null,"check_out_date":null,"room_type":null,"adults":null,"children":null,"reservation_id":null}}
    
    - Silme bilgileri tamamsa:
-   "response":"Rezervasyonunuz iptal ediliyor","action_type":"delete_reservation","tool_action":"delete_reservation_tool","customer_name":"Hüseyin ALTIKULAÇ","check_in_date":null,"check_out_date":null,"room_type":null,"adults":null,"children":null,"reservation_id":"RES123456"
+   {{"response":"Rezervasyonunuz iptal ediliyor","action_type":"delete_reservation","tool_action":"delete_reservation_tool","customer_name":"Hüseyin ALTIKULAÇ","check_in_date":null,"check_out_date":null,"room_type":null,"adults":null,"children":null,"reservation_id":"RES123456"}}
+
+5. TOOL SONUÇLARI YORUMLAMA (ÖNEMLİ):
+   - Rezervasyon listesi döndüyse:
+   {{"response":"Hüseyin ALTIKULAÇ adına 2 rezervasyon bulundu:\\\\n\\\\n1. 15-20 Mayıs 2024 - Suite Oda - 2 Yetişkin\\\\n2. 10-15 Haziran 2024 - Deluxe Oda - 2 Yetişkin, 1 Çocuk","action_type":null,"tool_action":null,"customer_name":null,"check_in_date":null,"check_out_date":null,"room_type":null,"adults":null,"children":null,"reservation_id":null}}
+
+   - Rezervasyon ekleme sonucu döndüyse:
+   {{"response":"Rezervasyonunuz başarıyla oluşturuldu!\\\\n\\\\nRezervasyon Detayları:\\\\nMüşteri: Hüseyin ALTIKULAÇ\\\\nOda Tipi: Suite Oda\\\\nGiriş Tarihi: 15-20 Mayıs 2024\\\\nKişi Sayısı: 2 yetişkin, 0 çocuk\\\\nToplam: 12.500TL","action_type":null,"tool_action":null,"customer_name":null,"check_in_date":null,"check_out_date":null,"room_type":null,"adults":null,"children":null,"reservation_id":null}}
+
+   - Rezervasyon güncelleme sonucu döndüyse:
+   {{"response":"Rezervasyonunuz başarıyla güncellendi.\\\\n\\\\nGüncellenen bilgiler:\\\\nYeni tarih: 20-25 Haziran 2024\\\\nYeni oda tipi: Deluxe\\\\nKişi sayısı: 2 yetişkin, 1 çocuk","action_type":null,"tool_action":null,"customer_name":null,"check_in_date":null,"check_out_date":null,"room_type":null,"adults":null,"children":null,"reservation_id":null}}
+
+   - Rezervasyon silme sonucu döndüyse:
+   {{"response":"Rezervasyonunuz başarıyla iptal edildi.\\\\n\\\\nİptal edilen rezervasyon:\\\\nHüseyin ALTIKULAÇ - Suite Oda - 15-20 Mayıs 2024","action_type":null,"tool_action":null,"customer_name":null,"check_in_date":null,"check_out_date":null,"room_type":null,"adults":null,"children":null,"reservation_id":null}}
 
 KURALLAR:
-- Sadece tek satır JSON formatı kullan, satır başı kullanma
+- Daima tek satır JSON formatı kullan, ASLA satır başı karakteri kullanma (\\n yerine \\\\n yaz)
+- Tüm JSON anahtarları çift tırnak içinde olmalı (response, action_type vb.)
+- Cevabını tek bir JSON nesnesi olarak formatla, başka açıklama ekleme
 - "response" alanına kullanıcıya gösterilecek mesajı yaz
 - "action_type" alanına işlem türünü belirt (create_reservation, list_reservations, update_reservation, delete_reservation)
 - Tüm gerekli bilgiler tamamlanmadan "tool_action" değerini ASLA doldurma
 - Eksik bilgi varsa "tool_action": null olmalı
 - Kullanıcı sadece teşekkür ettiğinde, memnuniyet belirttiğinde ya da rezervasyon işlemi gerektirmeyen bir konuşma yaptığında "action_type": null olmalı
+- Eğer herhangi bir tool sonucu varsa (boş değilse), action_type ve tool_action alanlarını null yap ve sonuçları güzelleştirerek response alanında dön
 
-5. GENEL KONUŞMA/TEŞEKKÜR:
+GENEL KONUŞMA/TEŞEKKÜR:
    - Kullanıcı teşekkür ettiğinde, memnuniyetini belirttiğinde veya rezervasyon işlemi gerektirmeyen bir konuşma yaptığında:
-   "response":"Rica ederim, size yardımcı olabildiğim için memnunum. Başka bir konuda yardımcı olabilir miyim?","action_type":null,"tool_action":null,"customer_name":null,"check_in_date":null,"check_out_date":null,"room_type":null,"adults":null,"children":null,"reservation_id":null
+   {{"response":"Rica ederim, size yardımcı olabildiğim için memnunum. Başka bir konuda yardımcı olabilir miyim?","action_type":null,"tool_action":null,"customer_name":null,"check_in_date":null,"check_out_date":null,"room_type":null,"adults":null,"children":null,"reservation_id":null}}
 
 ÇOK ÖNEMLİ NOT: Eğer kullanıcı "Rezervasyon bilgilerimi listele", "Rezervasyonları göster", "Rezervasyonlarımı göster" gibi bir istek yaparsa ve iletişim içerisinde kullanıcının adı geçtiyse veya sistemde tanımlıysa, direkt olarak "tool_action":"fetch_reservations_tool" değerini kullan ve "customer_name" alanını doldur. Bu, rezervasyon bilgilerinin görüntülenmesi için önemlidir.
 
@@ -213,9 +245,6 @@ Lütfen şu adımları takip et:
 1. Müşterinin sorusunu veya talebini anla
 2. Mevcut otel bilgilerini kullanarak kapsamlı bir yanıt sağla
 3. Gerekirse, ek bilgi iste veya rezervasyon ajanına yönlendir
-
-
-```
 
 Eğer soruyu yanıtlayamıyorsan veya rezervasyon gerektiren bir talepse, "forward_to_reservation" alanını true olarak ayarla. Müşteriye her zaman kibarca ve yardımsever bir şekilde yanıt ver.
 """

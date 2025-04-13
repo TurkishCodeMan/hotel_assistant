@@ -51,32 +51,82 @@ def safe_parse_message(message_content):
         return {}
         
     try:
-        # JSON'daki null değeri Python'da tanımlı değil, önce None ile değiştirelim
-        content = message_content.replace("'", '"').replace("null", "None")
+        # JSON'daki geçersiz karakterleri temizle
+        if isinstance(message_content, str):
+            # Önce bilinen emoji karakterlerini temizle
+            message_content = message_content.replace("📅", "")
+            message_content = message_content.replace("👤", "")
+            message_content = message_content.replace("🏨", "")
+            message_content = message_content.replace("👪", "")
+            message_content = message_content.replace("💰", "")
+            message_content = message_content.replace("✅", "")
+            message_content = message_content.replace("📋", "")
+            message_content = message_content.replace("🔄", "")
+            
+            # JSON formatına uygun hale getir
+            message_content = message_content.replace("'", '"').replace("null", "None")
+            
+            # Satırbaşı karakterlerini düzelt
+            message_content = message_content.replace("\n", "\\n")
+            
+            # Geçersiz kontrol karakterlerini temizle
+            import re
+            message_content = re.sub(r'[\x00-\x1F\x7F-\x9F]', '', message_content)
+            
+            logger.debug(f"Temizlenmiş mesaj içeriği: {message_content[:100]}...")
         
         try:
-            # JSON olarak çözmeyi dene
-            return json.loads(content.replace("null", "None"))
-        except json.JSONDecodeError:
-            # JSON olarak çözülemezse, özel bir işlem yap
+            # JSON olarak çözmeyi dene - strict=False ile daha esnek ayrıştırma
+            import json
+            return json.loads(message_content.replace("null", "None"), strict=False)
+        except json.JSONDecodeError as e:
+            logger.warning(f"JSON ayrıştırma hatası: {str(e)}")
+            
+            # Alternatif yöntem: Regex ile yanıt kısmını çıkarma
             try:
-                # Eğer bu tipik yanıt yapısına benziyorsa, sadece response kısmını çıkar
                 import re
-                match = re.search(r'"response":"([^"]+)"', content)
+                match = re.search(r'"response":"([^"]+)"', message_content)
                 if match:
+                    logger.info("regex ile response değeri alındı")
                     return {"response": match.group(1)}
                 
-                # Değilse standart eval kullan
-                result = eval(content)
+                # JSON'u daha esnek bir şekilde ayrıştırmayı dene
+                if message_content.startswith("{") and message_content.endswith("}"):
+                    # Anahtar-değer çiftlerini regex ile al
+                    pattern = r'"([^"]+)"\s*:\s*("[^"]*"|null|\d+|true|false)'
+                    pairs = re.findall(pattern, message_content)
+                    result = {}
+                    for key, value in pairs:
+                        # Değer tipini belirle
+                        if value == "null":
+                            result[key] = None
+                        elif value == "true":
+                            result[key] = True
+                        elif value == "false":
+                            result[key] = False
+                        elif value.startswith('"') and value.endswith('"'):
+                            result[key] = value[1:-1]  # Tırnak işaretlerini kaldır
+                        else:
+                            try:
+                                result[key] = int(value)
+                            except ValueError:
+                                result[key] = value
+                    
+                    if result:
+                        logger.info("regex ile json ayrıştırma başarılı")
+                        return result
+                
+                # En kötü durumda eval kullan (güvenli ortamda)
+                result = eval(message_content)
                 if isinstance(result, dict):
                     return result
                 return {}
             except Exception as e:
-                logger.error(f"Eval hatası: {str(e)}")
-                return {}
+                logger.error(f"Alternatif ayrıştırma hatası: {str(e)}")
+                return {"error": str(e), "content": message_content[:100] + "..."}
     except Exception as e:
         logger.error(f"Mesaj ayrıştırma hatası: {str(e)}")
-        return {}
+        return {"error": str(e)}
 
 def clean_json_text(text):
     """
@@ -115,20 +165,59 @@ def clean_json_text(text):
 def get_last_response(event: Dict) -> str:
     """Son yanıtı event'ten çıkarır"""
     try:
+        # Debug icin neyi kontrol ettigimizi loglayalim
+        logger.info("🔍 get_last_response: Yanıt arama başladı")
+        
         # End içindeki yanıtları kontrol et
         if "end" in event:
             end_data = event["end"]
             
-            # Öncelik sırası:
-            # 1. Rezervasyon ekleme sonuçları
-            # 2. Rezervasyon sorgulama sonuçları 
-            # 3. Rezervasyon güncelleme sonuçları
-            # 4. Rezervasyon silme sonuçları
-            # 5. Oda müsaitliği kontrol sonuçları
-            # 6. Genel rezervasyon yanıtları (Fallback)
-            # 7. Destek ve anlama yanıtları
+            # Tüm yanıt türlerini kontrol et ve logla
+            response_keys = [k for k in end_data.keys() if k.endswith('_response') or k.endswith('_result')]
+            logger.info(f"🔍 Mevcut yanıt türleri: {response_keys}")
             
-            # 1. Rezervasyon ekleme sonuçlarını kontrol et
+            # 1. Öncelikle HER ZAMAN Genel rezervasyon yanıtlarını kontrol et (önceliği yükselt)
+            if "reservation_response" in end_data and end_data["reservation_response"] and len(end_data["reservation_response"]) > 0:
+                logger.info("💬 Reservasyon yanıtı bulundu, işleniyor...")
+                res_resp = end_data["reservation_response"][-1]  # Son yanıtı al
+                if hasattr(res_resp, 'content'):
+                    content = res_resp.content
+                    
+                    # İçeriği logla (kısaltılmış)
+                    logger.info(f"💬 Rezervasyon yanıtı içeriği: {content[:100]}...")
+                    
+                    # 1. Eğer JSON formatında bir yanıt ise regex ile response alanını çıkar
+                    if content.startswith('{') and '"response"' in content:
+                        try:
+                            import re
+                            match = re.search(r'"response":\s*"([^"]*)"', content)
+                            if match:
+                                cleaned = clean_json_text(match.group(1))
+                                logger.info(f"✅ JSON response regex ile bulundu: {cleaned[:50]}...")
+                                return cleaned
+                        except Exception as e:
+                            logger.error(f"JSON response çıkarma hatası: {str(e)}")
+                    
+                    # 2. Normal JSON parsing dene
+                    try:
+                        result_dict = safe_parse_message(content)
+                        if result_dict and "response" in result_dict:
+                            cleaned = clean_json_text(result_dict["response"])
+                            logger.info(f"✅ JSON parsing ile response bulundu: {cleaned[:50]}...")
+                            return cleaned
+                    except Exception as e:
+                        logger.error(f"JSON parse hatası: {str(e)}")
+                    
+                    # 3. Yukarıdaki yöntemler başarısız olursa, temizlenmiş ham içeriği döndür
+                    cleaned = clean_json_text(content)
+                    logger.info(f"✅ Ham içerik döndürülüyor: {cleaned[:50]}...")
+                    return cleaned
+            else:
+                logger.info("❌ Rezervasyon yanıtı bulunamadı, diğer yanıt türleri kontrol ediliyor...")
+            
+            # Diğer özel yanıt türleri - sadece reservation_response boşsa kontrol et
+            
+            # 2. Rezervasyon ekleme sonuçlarını kontrol et
             if "add_reservation_result" in end_data and end_data["add_reservation_result"] and len(end_data["add_reservation_result"]) > 0:
                 add_result = end_data["add_reservation_result"][-1]  # Son yanıtı al
                 if hasattr(add_result, 'content'):
@@ -179,7 +268,7 @@ def get_last_response(event: Dict) -> str:
                         logger.error(f"Rezervasyon ekleme sonuç işleme hatası: {str(e)}")
                         return "Rezervasyon işlemi tamamlandı, ancak sonuç işlenirken bir hata oluştu."
             
-            # 2. Rezervasyon sorgulama sonuçlarını kontrol et
+            # 3. Rezervasyon sorgulama sonuçlarını kontrol et
             if "reservations_result" in end_data and end_data["reservations_result"] and len(end_data["reservations_result"]) > 0:
                 res_result = end_data["reservations_result"][-1]  # Son yanıtı al
                 if hasattr(res_result, 'content'):
@@ -200,7 +289,7 @@ def get_last_response(event: Dict) -> str:
                     except Exception as e:
                         logger.error(f"Rezervasyon sonuç işleme hatası: {str(e)}")
             
-            # 3. Rezervasyon güncelleme sonuçlarını kontrol et
+            # 4. Rezervasyon güncelleme sonuçlarını kontrol et
             if "update_reservation_result" in end_data and end_data["update_reservation_result"] and len(end_data["update_reservation_result"]) > 0:
                 update_result = end_data["update_reservation_result"][-1]  # Son yanıtı al
                 if hasattr(update_result, 'content'):
@@ -221,7 +310,7 @@ def get_last_response(event: Dict) -> str:
                     except Exception as e:
                         logger.error(f"Rezervasyon güncelleme sonuç işleme hatası: {str(e)}")
             
-            # 4. Rezervasyon silme sonuçlarını kontrol et
+            # 5. Rezervasyon silme sonuçlarını kontrol et
             if "delete_reservation_result" in end_data and end_data["delete_reservation_result"] and len(end_data["delete_reservation_result"]) > 0:
                 delete_result = end_data["delete_reservation_result"][-1]  # Son yanıtı al
                 if hasattr(delete_result, 'content'):
@@ -237,7 +326,7 @@ def get_last_response(event: Dict) -> str:
                     except Exception as e:
                         logger.error(f"Rezervasyon silme sonuç işleme hatası: {str(e)}")
             
-            # 5. Oda müsaitliği kontrolü sonuçlarını kontrol et
+            # 6. Oda müsaitliği kontrolü sonuçlarını kontrol et
             if "availability_result" in end_data and end_data["availability_result"] and len(end_data["availability_result"]) > 0:
                 avail_result = end_data["availability_result"][-1]  # Son yanıtı al
                 if hasattr(avail_result, 'content'):
@@ -276,33 +365,6 @@ def get_last_response(event: Dict) -> str:
                             return f"❌ Müsaitlik kontrolü yapılamadı: {result_dict.get('message', 'Bilinmeyen hata')}"
                     except Exception as e:
                         logger.error(f"Müsaitlik kontrol sonuç işleme hatası: {str(e)}")
-            
-            # 6. Genel rezervasyon yanıtları (Fallback)
-            if "reservation_response" in end_data and end_data["reservation_response"] and len(end_data["reservation_response"]) > 0:
-                res_resp = end_data["reservation_response"][-1]  # Son yanıtı al
-                if hasattr(res_resp, 'content'):
-                    content = res_resp.content
-                    
-                    # 1. Eğer JSON formatında bir yanıt ise regex ile response alanını çıkar
-                    if content.startswith('{') and '"response"' in content:
-                        try:
-                            import re
-                            match = re.search(r'"response":\s*"([^"]*)"', content)
-                            if match:
-                                return clean_json_text(match.group(1))
-                        except Exception as e:
-                            logger.error(f"JSON response çıkarma hatası: {str(e)}")
-                    
-                    # 2. Normal JSON parsing dene
-                    try:
-                        result_dict = safe_parse_message(content)
-                        if result_dict and "response" in result_dict:
-                            return clean_json_text(result_dict["response"])
-                    except Exception as e:
-                        logger.error(f"JSON parse hatası: {str(e)}")
-                    
-                    # 3. Yukarıdaki yöntemler başarısız olursa, temizlenmiş ham içeriği döndür
-                    return clean_json_text(content)
             
             # 7. Destek ve anlama yanıtları
             if "support_response" in end_data and end_data["support_response"] and len(end_data["support_response"]) > 0:
@@ -589,11 +651,13 @@ def initialize_session():
     if "conversation" not in st.session_state:
         st.session_state.conversation = []  # Konuşma geçmişi
     
-    # LangGraph state'ini başlatma
+    # LangGraph state'ini başlatma - doğrudan states.state modülünden gelen state'i kullan
     if "session_state" not in st.session_state:
-        st.session_state.session_state = state.copy() if state else {}  # LangGraph state'i
-        logger.info("Session state başlatıldı: %s", st.session_state.session_state)
+        # Orijinal state'i kullan, hiçbir ekstra düzenleme yapma
+        st.session_state.session_state = state.copy() if state else {}
+        logger.info(f"Session state başlatıldı: {state}")
     
+    # Workflow değişkenlerini başlat
     if "workflow" not in st.session_state:
         st.session_state.workflow = None  # LangGraph workflow
     
@@ -603,21 +667,25 @@ def initialize_session():
     # Form gönderim durumu için
     if "form_submitted" not in st.session_state:
         st.session_state.form_submitted = False
-    
-    # State debug bilgisi
-    logger.info("Session state durumu: %s", st.session_state)
 
 def process_message():
     """Form gönderildiğinde çalışacak fonksiyon"""
     if st.session_state.user_message:  # user_message içeriği varsa
         # Form gönderildi durumunu true yap
         st.session_state.form_submitted = True
+        
+        # Yeni mesaj için workflow'u sıfırla - bu, states.state'in yeni bir kopyası ile kullanılmasını sağlar
+        logger.info("🔄 Yeni sorgu geldi, workflow sıfırlanıyor")
+        
+        # Workflow'u yeniden başlat - bu yeni bir temiz state ile başlayacaktır
+        st.session_state.workflow = None
+        st.session_state.initialized = False
 
 def main():
     """Ana uygulama fonksiyonu"""
     
     # Sidebar'ı gizlemek için kontrol değişkeni - Deploy için False yapılabilir
-    SHOW_SIDEBAR = False  # Sidebar'ı göstermek için True, gizlemek için False
+    SHOW_SIDEBAR = True  # Sidebar'ı göstermek için True, gizlemek için False
     
     st.set_page_config(
         page_title="Altıkulaç Otel Rezervasyon Asistanı",
@@ -1037,15 +1105,21 @@ def main():
         # Kullanıcı mesajını konuşma geçmişine ekle
         st.session_state.conversation.append(("user", user_input))
         
-        # Konuşma geçmişini hazırla - SADECE kullanıcı mesajlarını al
+        # Konuşma geçmişini hazırla - TÜM kullanıcı mesajlarını al, sadece son mesajı değil
         conversation_history = []
         for role, msg in st.session_state.conversation:
             if role == "user":
                 conversation_history.append(msg)
         
-        # LangGraph için girdiyi hazırla
-        dict_inputs = st.session_state.session_state.copy() if st.session_state.session_state else {}
+        # LangGraph için girdiyi hazırla - Doğrudan states.state modülünden gelen state'i kullan
+        # Böylece ikinci bir state yönetimi yapmaktan kaçınmış oluruz
+        dict_inputs = state.copy() if state else {}
+        
+        # TÜM konuşma geçmişini research_question'a koy, böylece ajan tüm bağlamı hatırlayabilsin
         dict_inputs["research_question"] = conversation_history
+        
+        # ODAKLANMA NOKTASI: eski rezervasyon sonuç temizleme kodunu kaldırdık
+        # Artık sadece LangGraph'ın kendi state yönetimi kullanılıyor
         
         limit = {"recursion_limit": iterations}
         
@@ -1076,7 +1150,7 @@ def main():
                     if SHOW_SIDEBAR:
                         st.sidebar.success("State başarıyla güncellendi!")
                     
-                # Debug - son rezervasyon yanıtını kontrol et
+                # Debug - son rezervasyon yanıtını kontrol et ve her zaman loglama yap
                 if "end" in last_event and "reservation_response" in last_event["end"] and last_event["end"]["reservation_response"]:
                     last_res = last_event["end"]["reservation_response"][-1]
                     if hasattr(last_res, 'content'):
@@ -1087,6 +1161,7 @@ def main():
                 
                 # JSON formatı kontrolü ve temizleme
                 if final_response and isinstance(final_response, str):
+                    # JSON formatı kontrolü
                     if final_response.startswith('{') and final_response.endswith('}'):
                         try:
                             match = re.search(r'"response":\s*"([^"]+)"', final_response)
@@ -1095,15 +1170,78 @@ def main():
                                 logger.info(f"JSON formatı düzeltildi")
                         except Exception as e:
                             logger.error(f"JSON temizleme hatası: {str(e)}")
+                    
+                    # Hata mesajı içeriyorsa bunu işle
+                    if "error" in final_response:
+                        logger.warning(f"Yanıtta hata tespit edildi: {final_response[:100]}...")
+                        try:
+                            # Hata mesajını dict olarak ayrıştırmaya çalış
+                            if isinstance(final_response, str) and final_response.startswith('{') and "error" in final_response:
+                                error_dict = safe_parse_message(final_response)
+                                error_msg = error_dict.get("error", "Bilinmeyen bir hata oluştu")
+                                # Kullanıcıya daha iyi bir mesaj göster
+                                final_response = "Üzgünüm, mesajınızı işlerken teknik bir sorun oluştu. Lütfen tekrar deneyin veya sorunuzu farklı bir şekilde ifade edin."
+                                logger.error(f"İşlenen hata: {error_msg}")
+                        except Exception as e:
+                            logger.error(f"Hata işleme sırasında ek bir hata: {str(e)}")
+                            final_response = "Üzgünüm, bir sorun oluştu. Lütfen tekrar deneyin."
+                
+                # Yanıt bulunamadıysa, doğrudan reservation_response'a bak
+                if not final_response and "end" in last_event and "reservation_response" in last_event["end"] and last_event["end"]["reservation_response"]:
+                    try:
+                        last_res = last_event["end"]["reservation_response"][-1]
+                        if hasattr(last_res, 'content'):
+                            content = last_res.content
+                            # JSON formatını temizlemeyi dene
+                            content_cleaned = clean_json_text(content)
+                            
+                            # JSON içinden response alanını çıkarmaya çalış
+                            if content.startswith('{'):
+                                try:
+                                    content_dict = safe_parse_message(content)
+                                    if content_dict and "response" in content_dict:
+                                        final_response = clean_json_text(content_dict["response"])
+                                    else:
+                                        final_response = content_cleaned
+                                except:
+                                    final_response = content_cleaned
+                            else:
+                                final_response = content_cleaned
+                                
+                            logger.info("Rezervasyon yanıtı doğrudan extraction ile çıkarıldı")
+                    except Exception as e:
+                        logger.error(f"Doğrudan yanıt çıkarma hatası: {str(e)}")
+                
+                # Diğer araç sonuçlarına da bak
+                if not final_response:
+                    for result_key in ["reservations_result", "add_reservation_result", "update_reservation_result", "delete_reservation_result", "availability_result"]:
+                        if "end" in last_event and result_key in last_event["end"] and last_event["end"][result_key]:
+                            try:
+                                last_tool_result = last_event["end"][result_key][-1]
+                                if hasattr(last_tool_result, 'content'):
+                                    tool_content = last_tool_result.content
+                                    # Tool sonucunu doğrudan göster
+                                    if result_key == "reservations_result":
+                                        result_dict = safe_parse_message(tool_content)
+                                        if result_dict.get("success") and result_dict.get("count", 0) > 0:
+                                            reservations = result_dict.get("reservations", [])
+                                            formatted_response = "🏨 Bulunan Rezervasyonlar:\n\n"
+                                            for i, res in enumerate(reservations, 1):
+                                                formatted_response += f"{i}. {res.get('name', 'Misafir')} - {res.get('check_in', 'N/A')} → {res.get('check_out', 'N/A')} - {res.get('room_type', 'N/A')} oda\n"
+                                            final_response = formatted_response
+                                            logger.info("Rezervasyon listesi manüel olarak formatlandı")
+                                            break
+                            except Exception as ex:
+                                logger.error(f"Tool sonucu işleme hatası ({result_key}): {str(ex)}")
                 
                 # Yanıtı konuşma geçmişine ekle
                 if final_response:
                     st.session_state.conversation.append(("assistant", final_response))
                 else:
                     st.session_state.conversation.append(("assistant", "Üzgünüm, yanıt alınamadı."))
-            
-            # Sayfayı yenile
-            st.rerun()
+                
+                # Sayfayı yenile
+                st.rerun()
         
 if __name__ == "__main__":
     main() 

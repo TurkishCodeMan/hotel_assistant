@@ -11,11 +11,13 @@ from typing import Dict, Any, Optional
 
 from agents.agents import Agent
 from services.sheets_service import (
+
     get_all_reservations,
     add_reservation,
     update_reservation,
     delete_reservation,
-    check_availability
+    check_availability,
+    get_reservations_by_name
 )
 from states.state import AgentGraphState
 from langchain_core.messages import HumanMessage
@@ -34,7 +36,7 @@ class FetchReservationsAgent(Agent):
     """
     def invoke(self, research_question, conversation_state=None, customer_data=None):
         """
-        Tüm rezervasyonları getirir.
+        Rezervasyonları getirir ve filtreler.
         
         Args:
             research_question: Araştırma sorusu
@@ -44,7 +46,7 @@ class FetchReservationsAgent(Agent):
         Returns:
             Güncellenmiş durum
         """
-        logger.info(f"FetchReservationsAgent invoked with data: {customer_data}")
+        logger.info(f"FetchReservationsAgent invoked with data: {customer_data()}")
         
         try:
             # Parametre bilgilerini al
@@ -54,22 +56,66 @@ class FetchReservationsAgent(Agent):
             customer_name = None
             spreadsheet_name = DEFAULT_SPREADSHEET
             worksheet_name = DEFAULT_WORKSHEET
-            
-            if isinstance(params_data, str) and params_data:
+            room_type = None
+            limit = 10  # Varsayılan olarak en fazla 10 kayıt getir
+            exact_match = True  # Varsayılan olarak tam eşleşme arar
+            sort_by_date = False  # Tarihe göre sıralama
+            if params_data:
                 try:
-                    params_json = json.loads(params_data)
+                    params_json = json.loads(params_data[0].content)
                     customer_name = params_json.get("customer_name")
                     spreadsheet_name = params_json.get("spreadsheet_name", DEFAULT_SPREADSHEET)
                     worksheet_name = params_json.get("worksheet_name", DEFAULT_WORKSHEET)
-                except json.JSONDecodeError:
-                    logger.warning(f"JSON ayrıştırma hatası: {params_data}")
+                    room_type = params_json.get("room_type")
+                    
+                    # Yeni parametreler
+                    limit = int(params_json.get("limit", 10))  # Sayısal değere dönüştür
+                    exact_match = params_json.get("exact_match", True)  # Tam eşleşme veya içerme
+                    sort_by_date = params_json.get("sort_by_date", False)  # Tarihe göre sıralama
+                    
+                except (json.JSONDecodeError, ValueError) as e:
+                    logger.warning(f"JSON ayrıştırma hatası: {str(e)}")
             
             # Rezervasyonları getir
-            reservations = get_all_reservations(spreadsheet_name, worksheet_name)
-            
-            # Eğer müşteri adı belirtilmişse, filtreleme yap
+            reservations = []
+            print(customer_name,'-------------')
             if customer_name:
-                reservations = [r for r in reservations if r.get('customer_name') == customer_name]
+                logger.info(f"Müşteri adına göre filtreleniyor: {customer_name}, Tam Eşleşme: {exact_match}")
+                # Yeni get_reservations_by_name fonksiyonunu kullan - parametreleriyle
+                reservations = get_reservations_by_name(
+                    spreadsheet_name, 
+                    customer_name, 
+                    exact_match=exact_match,  # Tam eşleşme veya içerme kontrolü
+                    worksheet_name=worksheet_name,
+                    room_type=room_type
+                )
+                logger.info(f"İsme göre filtrelendi: {len(reservations)} sonuç")
+            else:
+                # Müşteri adı belirtilmemişse, tüm kayıtları getir ve sonra sınırla
+                logger.info(f"Tüm rezervasyonlar getiriliyor (en fazla {limit} kayıt)")
+                all_reservations = get_all_reservations(spreadsheet_name, worksheet_name)
+                
+                # Room type filtresi aktifse uygula
+                if room_type:
+                    logger.info(f"Oda tipine göre filtreleniyor: {room_type}")
+                    all_reservations = [r for r in all_reservations if r.get('room_type', '').lower() == room_type.lower()]
+                
+                # Belirtilen limite göre sınırla
+                reservations = all_reservations[:limit]
+                logger.info(f"Toplam {len(all_reservations)} kayıttan {len(reservations)} kayıt alındı")
+            
+            # Tarihe göre sıralama
+            if sort_by_date and reservations:
+                try:
+                    logger.info("Rezervasyonlar giriş tarihine göre sıralanıyor")
+                    # Giriş tarihine göre sırala (yeniden eskiye)
+                    reservations = sorted(
+                        reservations, 
+                        key=lambda x: x.get('check_in_date', '0000-00-00'),
+                        reverse=True
+                    )
+                except Exception as sort_error:
+                    logger.warning(f"Tarihe göre sıralama hatası: {str(sort_error)}")
             
             # Sonucu hazırla
             if reservations:
@@ -93,12 +139,24 @@ class FetchReservationsAgent(Agent):
                 result = {
                     "success": True,
                     "count": len(reservations),
+                    "total_available": len(reservations),  # Toplam kayıt sayısı
+                    "limit": limit,  # Uygulanan limit
+                    "filter": {
+                        "customer_name": customer_name,
+                        "room_type": room_type,
+                        "exact_match": exact_match
+                    },
                     "reservations": formatted_reservations
                 }
             else:
                 result = {
                     "success": True,
                     "count": 0,
+                    "filter": {
+                        "customer_name": customer_name,
+                        "room_type": room_type,
+                        "exact_match": exact_match
+                    },
                     "message": "Hiç rezervasyon bulunamadı."
                 }
             
@@ -617,8 +675,9 @@ class DeleteReservationAgent(Agent):
                 reservation_id = param_json_data.get('reservation_id')
                 customer_name = param_json_data.get('customer_name')
                 room_type = param_json_data.get('room_type')
+                exact_match = param_json_data.get('exact_match', True)  # Tam eşleşme veya kısmi eşleşme
                 
-                logger.info(f"Silme parametreleri: ID={reservation_id}, İsim={customer_name}, Oda Tipi={room_type}")
+                logger.info(f"Silme parametreleri: ID={reservation_id}, İsim={customer_name}, Oda Tipi={room_type}, Tam Eşleşme={exact_match}")
                 
                 # Silme için en az bir kriterin olması gerekiyor: ya ID ya da isim
                 if not reservation_id and not customer_name:
@@ -670,39 +729,52 @@ class DeleteReservationAgent(Agent):
                                     }
                         # Sadece müşteri adı varsa
                         else:
-                            logger.info(f"Müşteri adı ile silme deneniyor: {customer_name}")
-                            success = delete_reservation(
-                                spreadsheet_name, 
+                            logger.info(f"Müşteri adı ile silme deneniyor: {customer_name}, Tam Eşleşme: {exact_match}")
+                            # Eskiden direct delete_reservation çağrısı vardı, şimdi kendi filtereleme yöntemimizi kullanıyoruz
+                            filtered_reservations = get_reservations_by_name(
+                                spreadsheet_name,
                                 customer_name,
-                                worksheet_name,
-                                use_customer_name=True,
+                                exact_match=exact_match,  
+                                worksheet_name=worksheet_name,
                                 room_type=room_type
                             )
                             
-                            if success:
-                                if room_type:
-                                    result = {
-                                        "success": True,
-                                        "message": f"Müşteri adı ve oda tipi ile rezervasyon silindi: {customer_name} ({room_type})"
-                                    }
+                            if filtered_reservations:
+                                success = False
+                                deleted_count = 0
+                                
+                                # Bulunan her rezervasyonu ID'sine göre sil
+                                for reservation in filtered_reservations:
+                                    if 'reservation_id' in reservation:
+                                        res_id = reservation.get('reservation_id')
+                                        logger.info(f"Filtrelenmiş rezervasyon siliniyor: ID={res_id}, İsim={reservation.get('customer_name', 'N/A')}")
+                                        if delete_reservation(spreadsheet_name, res_id, worksheet_name):
+                                            deleted_count += 1
+                                            success = True
+                                
+                                if success:
+                                    if room_type:
+                                        result = {
+                                            "success": True,
+                                            "message": f"Müşteri adı ve oda tipi ile {deleted_count} rezervasyon silindi: {customer_name} ({room_type})"
+                                        }
+                                    
+                                    # Tam eşleşme değilse ve birden fazla rezervasyon silindiyse, bilgilendirme ekle
+                                    if not exact_match and deleted_count > 1:
+                                        result["warning"] = f"Dikkat: Kısmi eşleşme nedeniyle {deleted_count} rezervasyon silindi"
                                 else:
-                                    result = {
-                                        "success": True,
-                                        "message": f"Müşteri adı ile rezervasyon silindi: {customer_name}"
-                                    }
-                            else:
-                                if room_type:
-                                    result = {
-                                        "success": False,
-                                        "error": "Rezervasyon silinirken bir hata oluştu.",
-                                        "message": f"Belirtilen müşteri adı ve oda tipi ile rezervasyon bulunamadı: {customer_name} ({room_type})"
-                                    }
-                                else:
-                                    result = {
-                                        "success": False,
-                                        "error": "Rezervasyon silinirken bir hata oluştu.",
-                                        "message": f"Belirtilen müşteri adı ile rezervasyon bulunamadı: {customer_name}"
-                                    }
+                                    if room_type:
+                                        result = {
+                                            "success": False,
+                                            "error": "Rezervasyon silinirken bir hata oluştu.",
+                                            "message": f"Belirtilen müşteri adı ve oda tipi ile rezervasyon bulunamadı: {customer_name} ({room_type})"
+                                        }
+                                    else:
+                                        result = {
+                                            "success": False,
+                                            "error": "Rezervasyon silinirken bir hata oluştu.",
+                                            "message": f"Belirtilen müşteri adı ile rezervasyon bulunamadı: {customer_name}"
+                                        }
                     except Exception as api_error:
                         logger.error(f"API hatası: {str(api_error)}")
                         result = {
