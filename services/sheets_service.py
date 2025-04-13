@@ -27,20 +27,32 @@ def get_sheet_client():
         if os.environ.get('GOOGLE_CREDENTIALS'):
             import json
             logger.info("Kimlik bilgileri çevre değişkeninden okunuyor...")
-            credentials_dict = json.loads(os.environ.get('GOOGLE_CREDENTIALS'))
+            credentials_json = os.environ.get('GOOGLE_CREDENTIALS')
+            
+            # JSON formatı düzeltme - bazen çevre değişkenleri tırnak içine alınır
+            if credentials_json.startswith("'") and credentials_json.endswith("'"):
+                credentials_json = credentials_json[1:-1]
+                
+            credentials_dict = json.loads(credentials_json)
             credentials = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, SCOPES)
+            
         # 2. Sonra google_credentials.json dosyasını kontrol et
         elif os.path.exists(CREDENTIALS_FILE):
             logger.info(f"Kimlik bilgileri dosyadan okunuyor: {CREDENTIALS_FILE}")
             credentials = ServiceAccountCredentials.from_json_keyfile_name(CREDENTIALS_FILE, SCOPES)
+            
         else:
-            raise FileNotFoundError(f"Kimlik bilgileri bulunamadı: {CREDENTIALS_FILE}")
+            raise FileNotFoundError(
+                f"Kimlik bilgileri bulunamadı: {CREDENTIALS_FILE} dosyası mevcut değil "
+                f"ve GOOGLE_CREDENTIALS çevre değişkeni tanımlanmamış."
+            )
             
         client = gspread.authorize(credentials)
         return client
     except Exception as e:
         logger.error(f"Google Sheets API bağlantı hatası: {str(e)}")
         raise
+
 def open_sheet(spreadsheet_name_or_key, worksheet_name=None):
     """
     Belirtilen tabloyu ve sayfayı açar.
