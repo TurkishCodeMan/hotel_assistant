@@ -112,7 +112,8 @@ def render_message_form():
         """, unsafe_allow_html=True)
 
         user_message = st.text_input(
-            label="",
+            label="Mesaj",
+            label_visibility="collapsed",
             key="user_message",
             placeholder="Nasıl yardımcı olabilirim? Rezervasyon yapmak, bilgi almak için yazın..."
         )
