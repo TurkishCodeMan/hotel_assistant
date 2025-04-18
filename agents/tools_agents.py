@@ -936,7 +936,7 @@ class EndNodeAgent(Agent):
     """
     Akışı sonlandıran ajan.
     """
-    def invoke(self):
+    async def invoke(self):
         """
         Akışı sonlandırır.
         

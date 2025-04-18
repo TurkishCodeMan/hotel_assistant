@@ -99,3 +99,57 @@ def custom_print(message, stdscr=None, scroll_pos=0):
         return num_lines
     else:
         print(message)
+
+
+def create_tool_description(tools=None):
+     # Araçların dinamik açıklamasını oluştur
+        tools_description = "Kullanabileceğin araçları aşağıda listeliyorum. Bu araçları kullanarak rezervasyon işlemlerini yerine getirebilirsin:\n\n"
+        
+        if tools:
+            for i, tool in enumerate(tools, 1):
+                tools_description += f"{i}. {tool.name} - {tool.description}\n"
+                
+                # Parametre detayları
+                if hasattr(tool, 'inputSchema') and tool.inputSchema and 'properties' in tool.inputSchema:
+                    tools_description += "   Parametreler:\n"
+                    required_params = tool.inputSchema.get('required', [])
+                    
+                    for param_name, param_details in tool.inputSchema['properties'].items():
+                        is_required = param_name in required_params
+                        param_type = param_details.get('type', '')
+                        param_desc = param_details.get('description', '')
+                        
+                        # Örnek değer oluştur
+                        example = ''
+                        if param_type == 'string':
+                            if param_name == 'customer_name':
+                                example = '"Ali Veli"'
+                            elif param_name == 'check_in_date' or param_name == 'check_out_date':
+                                example = '"2025-06-20"'
+                            elif param_name == 'room_type':
+                                example = '"Deluxe"'
+                            elif param_name == 'reservation_id':
+                                example = '"12345"'
+                            else:
+                                example = '"örnek"'
+                        elif param_type == 'integer':
+                            if param_name == 'adults':
+                                example = '2'
+                            elif param_name == 'children':
+                                example = '1'
+                            else:
+                                example = '0'
+                        elif param_type == 'boolean':
+                            example = 'true'
+                            
+                        required_text = "(zorunlu)" if is_required else "(opsiyonel)"
+                        tools_description += f"   - {param_name} {required_text} (ör: {example})"
+                        if param_desc:
+                            tools_description += f" - {param_desc}"
+                        tools_description += "\n"
+                tools_description += "\n"
+        else:
+            tools_description += "Şu an kullanılabilir araç bulunmamaktadır.\n"
+            
+        tools_description += "Müşterinin talebi doğrultusunda uygun aracı seç ve kullan. Eğer araç kullanımı gerekli değilse, bilgiyi doğrudan sağla."
+        return tools_description

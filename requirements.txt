@@ -21,3 +21,4 @@ httpx==0.28.1
 # Veri işleme
 numpy==1.26.4
 pydantic==2.11.2
+mcp

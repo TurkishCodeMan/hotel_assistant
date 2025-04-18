@@ -22,7 +22,7 @@ class RouterAgent(Agent):
     Router Ajanı.
     Kullanıcının isteğini analiz eder ve uygun düğüme yönlendirir.
     """
-    def invoke(self, research_question, conversation_state=None, reservation_response=None):
+    async def invoke(self, research_question, conversation_state=None, reservation_response=None):
         """
         Router ajanını çağırır
         
@@ -191,7 +191,7 @@ class DataExtractorAgent(Agent):
     Rezervasyon ajanının yanıtından gerekli verileri çıkarır ve state'e ekler.
     Ayrıca sohbet bağlamını koruyarak önceki niyetlerin kaybolmamasını sağlar.
     """
-    def invoke(self, research_question, conversation_state=None, reservation_response=None):
+    async def invoke(self, research_question, conversation_state=None, reservation_response=None):
         """
         Veri çıkarıcı ajanını çağırır
         
